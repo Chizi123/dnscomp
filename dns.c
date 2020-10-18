@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 //#include <netint/in.h>
 //#include <netdb.h>
-#include <sys/time.h>
+//#include <sys/time.h>
 #include <unistd.h>
 #include "dns.h"
 
@@ -61,7 +61,7 @@ struct R_DATA
 struct RES_RECORD
 {
 	 unsigned char* name;
-	 struct R_DATA* resource;
+	 struct R_DATA resource;
 	 unsigned char* rdata;
 };
 
@@ -130,67 +130,69 @@ void print_packet(unsigned char* buf)
 	 reader = &buf[sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION)];
 	 printf("Response contains %d Qs, %d ans, %d auth serv, %d add reconds\n", ntohs(dns->q_count), ntohs(dns->ans_count), ntohs(dns->auth_count), ntohs(dns->add_count));
 	 stop = 0;
+
+	 //read answers
 	 for (i = 0; i < ntohs(dns->ans_count); i++) {
 		  answers[i].name = read_name(reader, buf, &stop);
 		  reader = reader + stop;
-		  answers[i].resource = (struct R_DATA*)reader;
+		  memcpy(&(answers[i].resource), reader, sizeof(struct R_DATA));
 		  reader = reader+sizeof(struct R_DATA);
-		  
-		  if (ntohs(answers[i].resource->type) == T_A) { //IPv4 address
-			   answers[i].rdata = (unsigned char*)malloc(ntohs(answers[i].resource->data_len));
-			   for (j = 0; j < ntohs(answers[i].resource->data_len); j++) {
+
+		  if (ntohs(answers[i].resource.type) == T_A) { //IPv4 address
+			   answers[i].rdata = (unsigned char*)malloc(ntohs(answers[i].resource.data_len));
+			   for (j = 0; j < ntohs(answers[i].resource.data_len); j++) {
 					answers[i].rdata[j] = reader[j];
 			   }
-			   answers[i].rdata[ntohs(answers[i].resource->data_len)] = '\0';
-			   reader = reader + ntohs(answers[i].resource->data_len);
+			   answers[i].rdata[ntohs(answers[i].resource.data_len)] = '\0';
+			   reader = reader + ntohs(answers[i].resource.data_len);
 		  } else {
 			   answers[i].rdata = read_name(reader, buf, &stop);
 			   reader = reader + stop;
 		  }
 	 }
-	 
+
 	 //read authorities
 	 for (i = 0; i < ntohs(dns->auth_count); i++) {
 		  auth[i].name = read_name(reader, buf, &stop);
 		  reader += stop;
-		  auth[i].resource = (struct R_DATA*)reader;
+		  memcpy(&(auth[i].resource), reader, sizeof(struct R_DATA));
 		  reader += sizeof(struct R_DATA);
 		  auth[i].rdata = read_name(reader, buf, &stop);
 		  reader += stop;
 	 }
-	 
+
 	 //read additional
 	 for (i = 0; i < ntohs(dns->add_count); i++) {
 		  addit[i].name = read_name(reader, buf, &stop);
 		  reader += stop;
-		  addit[i].resource = (struct R_DATA*)reader;
+		  memcpy(&(addit[i].resource), reader, sizeof(struct R_DATA));
 		  reader += sizeof(struct R_DATA);
 
-		  if (ntohs(addit[i].resource->type) == 1) {
-			   addit[i].rdata = malloc(ntohs(addit[i].resource->data_len));
-			   for (j = 0; j < ntohs(addit[i].resource->data_len); j++)
+		  if (ntohs(addit[i].resource.type) == 1) {
+			   addit[i].rdata = malloc(ntohs(addit[i].resource.data_len));
+			   for (j = 0; j < ntohs(addit[i].resource.data_len); j++)
 					addit[i].rdata[j] = reader[j];
-			   
-			   addit[i].rdata[ntohs(addit[i].resource->data_len)] = '\0';
-			   reader += ntohs(addit[i].resource->data_len);
+			   addit[i].rdata[ntohs(addit[i].resource.data_len)] = '\0';
+			   reader += ntohs(addit[i].resource.data_len);
 		  } else {
 			   addit[i].rdata = read_name(reader, buf, &stop);
 			   reader += stop;
 		  }
 	 }
-	 
+
 	 //print answers
 	 printf("ans recs: %d\n", ntohs(dns->ans_count));
 	 for (i = 0; i < ntohs(dns->ans_count); i++) {
 		  printf("name: %s ", answers[i].name);
-		  if (ntohs(answers[i].resource->type) == T_A) { //IPv4
+		  if (ntohs(answers[i].resource.type) == T_A) { //IPv4
 			   long* p;
 			   p = (long*)answers[i].rdata;
 			   a.sin_addr.s_addr=(*p);
 			   printf("has IPv4 addresss: %s", inet_ntoa(a.sin_addr));
-		  } else if (ntohs(answers[i].resource->type) == T_CNAME) { //CNAME
+		  } else if (ntohs(answers[i].resource.type) == T_CNAME) { //CNAME
 			   printf("has alias: %s", answers[i].rdata);
 		  }
+		  free(answers[i].rdata);
 		  putc('\n', stdout);
 	 }
 
@@ -198,12 +200,13 @@ void print_packet(unsigned char* buf)
 	 printf("Auth recs: %d\n", ntohs(dns->auth_count));
 	 for (i = 0; i < ntohs(dns->auth_count); i++) {
 		  printf("name: %s ", addit[i].name);
-		  if (ntohs(addit[i].resource->type) == 1) {
+		  if (ntohs(addit[i].resource.type) == 1) {
 			   long* p;
 			   p = (long*)addit[i].rdata;
 			   a.sin_addr.s_addr = *p;
 			   printf("has IPv4 address: %s", inet_ntoa(a.sin_addr));
 		  }
+		  free(auth[i].rdata);
 		  putc('\n', stdout);
 	 }
 }
