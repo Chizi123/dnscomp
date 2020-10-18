@@ -2,6 +2,8 @@
 
 int main(int argc, char** argv)
 {
-	 resolve("google.com", "1.1.1.1", T_A, 1);
+	 unsigned char buf[65536];
+	 resolve(buf, "google.com", "1.1.1.1", T_A);
+	 print_packet(buf);
 	 return 0;
 }

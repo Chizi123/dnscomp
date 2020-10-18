@@ -8,7 +8,5 @@
 #define T_TXT 16				// Text record
 #define T_AAAA 28				// IPv6 address
 
-void resolve(char* hostname, char* dns_ip, int query_type, int read);
+void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type);
 void print_packet(unsigned char* buf);
-void change_to_DNS_name_format(unsigned char* dns, unsigned char* host);
-char* read_name(unsigned char* reader, unsigned char* buffer, int* count);

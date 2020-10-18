@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include "dns.h"
 
+void change_to_DNS_name_format(unsigned char* dns, unsigned char* host);
+char* read_name(unsigned char* reader, unsigned char* buffer, int* count);
+
 // DNS code copied from
 // https://gist.github.com/fffaraz/9d9170b57791c28ccda9255b48315168
 
@@ -26,7 +29,7 @@ struct DNS_HEADER
 	 unsigned char ad :1;		//authenticated data
 	 unsigned char z :1;		//reserved for future use
 	 unsigned char ra :1;		//recursion available
-	 unsigned short q_count;	//number of question entries
+	 unsigned short q_count;	//number of question entrise
 	 unsigned short ans_count;	//number of answer entries
 	 unsigned short auth_count; //number of authority entries
 	 unsigned short add_count;  //number of resource entries
@@ -65,11 +68,11 @@ struct RES_RECORD
 	 unsigned char* rdata;
 };
 
-void resolve(char* hostname, char* dns_ip, int query_type, int read)
+void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 {
 	 int s, i, j;
 	 struct sockaddr_in dest, a;
-	 unsigned char buf[65536], *qname, *reader;
+	 unsigned char *qname, *reader;
 	 struct DNS_HEADER* dns = NULL;
 	 struct QUESTION* qinfo = NULL;
 
@@ -79,7 +82,7 @@ void resolve(char* hostname, char* dns_ip, int query_type, int read)
 	 dest.sin_addr.s_addr = inet_addr(dns_ip);
 
 	 //dns packet header
-	 dns = (struct DNS_HEADER*)&buf;
+	 dns = (struct DNS_HEADER*)buf;
 	 dns->id = (unsigned short) htons(getpid());
 	 dns->qr = 0;				//make query
 	 dns->opcode = 0;			//standard query
@@ -111,11 +114,6 @@ void resolve(char* hostname, char* dns_ip, int query_type, int read)
 	 //negative return is a fail
 	 i = sizeof(dest);
 	 recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest, (socklen_t*)&i);
-
-	 //read response
-	 if (read) {
-		  print_packet(buf);
-	 }
 	 return;
 }
 
