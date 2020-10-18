@@ -143,8 +143,8 @@ void resolve(char* hostname, char* dns_ip, int query_type, int read)
 			   answers[i].resource = (struct R_DATA*)reader;
 			   reader = reader+sizeof(struct R_DATA);
 
-			   if (ntohs(answers[i].resource->type) == 1) { //IPv6 address
-					answers[i].rdata[j] = (unsigned char*)malloc(ntohs(answers[i].resource->data_len));
+			   if (ntohs(answers[i].resource->type) == T_A) { //IPv4 address
+					answers[i].rdata = (unsigned char*)malloc(ntohs(answers[i].resource->data_len));
 					for (j = 0; j < ntohs(answers[i].resource->data_len); j++) {
 						 answers[i].rdata[j] = reader[j];
 					}
@@ -190,7 +190,7 @@ void resolve(char* hostname, char* dns_ip, int query_type, int read)
 		  printf("ans recs: %d\n", ntohs(dns->ans_count));
 		  for (i = 0; i < ntohs(dns->ans_count); i++) {
 			   printf("name: %s ", answers[i].name);
-			   if (ntohs(answers[i].resource->type == T_A)) { //IPv4
+			   if (ntohs(answers[i].resource->type) == T_A) { //IPv4
 					long* p;
 					p = (long*)answers[i].rdata;
 					a.sin_addr.s_addr=(*p);
@@ -221,13 +221,15 @@ void resolve(char* hostname, char* dns_ip, int query_type, int read)
 void change_to_DNS_name_format(unsigned char* dns, unsigned char* host)
 {
 	 int lock = 0;
-	 strcat((char*)host,".");
+	 char h[300];
+	 strcpy(h, host);
+	 strcat((char*)h,".");
 
-	 for (int i = 0; i < strlen((char*)host); i++) {
-		  if (host[i] == '.') {
+	 for (int i = 0; i < strlen((char*)h); i++) {
+		  if (h[i] == '.') {
 			   *dns++ = i-lock;
-			   for (;lock<i;i++) {
-					*dns++ = host[lock];
+			   for (;lock<i;lock++) {
+					*dns++ = h[lock];
 			   }
 			   lock++;
 		  }
@@ -258,7 +260,7 @@ u_char* read_name(unsigned char* reader, unsigned char* buffer, int* count)
 		  }
 	 }
 	 name[p] = '\0';
-	 if (jumped == 0) {
+	 if (jumped == 1) {
 		  *count = *count + 1;
 	 }
 
