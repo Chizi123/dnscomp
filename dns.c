@@ -73,8 +73,8 @@ void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 	 int s, i, j;
 	 struct sockaddr_in dest, a;
 	 unsigned char *qname, *reader;
-	 struct DNS_HEADER* dns = NULL;
-	 struct QUESTION* qinfo = NULL;
+	 struct DNS_HEADER* dns = (struct DNS_HEADER*)buf;
+	 struct QUESTION* qinfo;
 
 	 s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	 dest.sin_family = AF_INET;
@@ -82,7 +82,6 @@ void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 	 dest.sin_addr.s_addr = inet_addr(dns_ip);
 
 	 //dns packet header
-	 dns = (struct DNS_HEADER*)buf;
 	 dns->id = (unsigned short) htons(getpid());
 	 dns->qr = 0;				//make query
 	 dns->opcode = 0;			//standard query
