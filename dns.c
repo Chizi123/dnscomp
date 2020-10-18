@@ -192,6 +192,7 @@ void print_packet(unsigned char* buf)
 		  } else if (ntohs(answers[i].resource.type) == T_CNAME) { //CNAME
 			   printf("has alias: %s", answers[i].rdata);
 		  }
+		  free(answers[i].name);
 		  free(answers[i].rdata);
 		  putc('\n', stdout);
 	 }
@@ -199,14 +200,31 @@ void print_packet(unsigned char* buf)
 	 //print authorities
 	 printf("Auth recs: %d\n", ntohs(dns->auth_count));
 	 for (i = 0; i < ntohs(dns->auth_count); i++) {
-		  printf("name: %s ", addit[i].name);
-		  if (ntohs(addit[i].resource.type) == 1) {
+		  printf("name: %s ", auth[i].name);
+		  if (ntohs(auth[i].resource.type) == 1) {
 			   long* p;
-			   p = (long*)addit[i].rdata;
+			   p = (long*)auth[i].rdata;
 			   a.sin_addr.s_addr = *p;
 			   printf("has IPv4 address: %s", inet_ntoa(a.sin_addr));
 		  }
+		  free(answers[i].name);
 		  free(auth[i].rdata);
+		  putc('\n', stdout);
+	 }
+
+	 printf("Addit recs: %d\n", ntohs(dns->add_count));
+	 for (i = 0; i < ntohs(dns->add_count); i++) {
+		  printf("name; %s", addit[i].name);
+		  if (ntohs(auth[i].resource.type) == 1) {
+			   long *p;
+			   p = (long*)addit[i].rdata;
+			   a.sin_addr.s_addr = *p;
+			   printf("has IPv4 address: %s", inet_ntoa(a.sin_addr));
+		  } else {
+			   printf("has %s", addit[i].rdata);
+		  }
+		  free(answers[i].name);
+		  free(addit[i].rdata);
 		  putc('\n', stdout);
 	 }
 }
