@@ -63,16 +63,16 @@ struct R_DATA
 /* Pointers to record components */
 struct RES_RECORD
 {
-	 unsigned char* name;
+	 char* name;
 	 struct R_DATA resource;
-	 unsigned char* rdata;
+	 char* rdata;
 };
 
 void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 {
-	 int s, i, j;
-	 struct sockaddr_in dest, a;
-	 unsigned char *qname, *reader;
+	 int s, i;
+	 struct sockaddr_in dest;
+	 unsigned char *qname;
 	 struct DNS_HEADER* dns = (struct DNS_HEADER*)buf;
 	 struct QUESTION* qinfo;
 
@@ -121,7 +121,7 @@ void print_packet(unsigned char* buf)
 	 struct RES_RECORD answers[20], auth[20], addit[20];
 	 struct DNS_HEADER *dns;
 	 struct sockaddr_in a;
-	 char* qname = buf+sizeof(struct DNS_HEADER), *reader;
+	 unsigned char* qname = buf+sizeof(struct DNS_HEADER), *reader;
 	 int stop, i, j;
 	 dns = (struct DNS_HEADER*)buf;
 	 reader = &buf[sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION)];
@@ -136,7 +136,7 @@ void print_packet(unsigned char* buf)
 		  reader = reader+sizeof(struct R_DATA);
 
 		  if (ntohs(answers[i].resource.type) == T_A) { //IPv4 address
-			   answers[i].rdata = (unsigned char*)malloc(ntohs(answers[i].resource.data_len));
+			   answers[i].rdata = (char*)malloc(ntohs(answers[i].resource.data_len));
 			   for (j = 0; j < ntohs(answers[i].resource.data_len); j++) {
 					answers[i].rdata[j] = reader[j];
 			   }
@@ -231,10 +231,10 @@ void change_to_DNS_name_format(unsigned char* dns, unsigned char* host)
 {
 	 int lock = 0;
 	 char h[300];
-	 strcpy(h, host);
+	 strcpy(h, (char*)host);
 	 strcat((char*)h,".");
 
-	 for (int i = 0; i < strlen((char*)h); i++) {
+	 for (int i = 0; i < strlen(h); i++) {
 		  if (h[i] == '.') {
 			   *dns++ = i-lock;
 			   for (;lock<i;lock++) {
@@ -248,11 +248,11 @@ void change_to_DNS_name_format(unsigned char* dns, unsigned char* host)
 
 char* read_name(unsigned char* reader, unsigned char* buffer, int* count)
 {
-	 unsigned char* name;
+	 char* name;
 	 unsigned int p=0, jumped=0, offset;
 	 int i, j;
 	 *count = 1;
-	 name = (unsigned char*)malloc(256);
+	 name = (char*)malloc(256);
 	 name[0]='\0';
 
 	 while (*reader != 0) {
