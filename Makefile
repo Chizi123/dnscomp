@@ -1,12 +1,22 @@
 CC=gcc
-OBJ=main.o dns.o
-DEPS=dns.h
-CFLAGS=-g
+_OBJ=main.o dns.o
+_DEPS=dns.h
+IDIR=include
+CFLAGS=-I$(IDIR) -Wall -g
+ODIR=obj
+SRCDIR=src
 
-default: all
+DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
+OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-%.o: %.c $(DEPS)
+default: a.out
+
+%.o: %c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-all: $(OBJ)
-	$(CC) $(CFLAGS) $^
+a.out: $(_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^
+
+.PHONY: clean
+clean:
+	rm -rf *.o *~
