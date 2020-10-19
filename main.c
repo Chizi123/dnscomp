@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include "dns.h"
 
 int main(int argc, char** argv)
@@ -45,7 +46,9 @@ int main(int argc, char** argv)
 		  }
 	 }
 	 unsigned char buf[65536];
-	 resolve(buf, hostname, server, type);
+	 struct timespec time;
+	 time = resolve(buf, hostname, server, type);
+	 printf("Request took %ld.%09lds\n", time.tv_sec, time.tv_nsec);
 	 print_packet(buf);
 	 return 0;
 }

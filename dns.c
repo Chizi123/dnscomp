@@ -6,6 +6,7 @@
 //#include <netint/in.h>
 //#include <netdb.h>
 //#include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 #include "dns.h"
 
@@ -68,15 +69,18 @@ struct RES_RECORD
 	 char* rdata;
 };
 
-void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
+struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 {
 	 int s, i;
 	 struct sockaddr_in dest;
 	 unsigned char *qname;
 	 struct DNS_HEADER* dns = (struct DNS_HEADER*)buf;
 	 struct QUESTION* qinfo;
+	 struct timespec start, end, total, timeout;
+	 timeout.tv_nsec=0; timeout.tv_sec=1;
 
 	 s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	 setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timespec)); //use a 1 second timeout for receiving, should be more than enough and anything more is really bad
 	 dest.sin_family = AF_INET;
 	 dest.sin_port = htons(53);
 	 dest.sin_addr.s_addr = inet_addr(dns_ip);
@@ -107,13 +111,25 @@ void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 
 	 //send request
 	 // return less than 0 is a fail
+	 clock_gettime(CLOCK_MONOTONIC, &start);
 	 sendto(s,(char*)buf, sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION), 0, (struct sockaddr*)&dest, sizeof(dest));
 
 	 //receive response
 	 //negative return is a fail
 	 i = sizeof(dest);
-	 recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest, (socklen_t*)&i);
-	 return;
+	 i = recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest, (socklen_t*)&i);
+	 clock_gettime(CLOCK_MONOTONIC, &end);
+
+	 if (i == -1)
+		  total.tv_nsec = -1;
+	 else
+		  total.tv_sec = end.tv_sec - start.tv_sec;
+	 if ((end.tv_nsec - start.tv_nsec) < 0)
+		  total.tv_nsec = start.tv_nsec - end.tv_nsec;
+	 else
+		  total.tv_nsec = end.tv_nsec - start.tv_nsec;
+	 close(s);
+	 return total;
 }
 
 void print_packet(unsigned char* buf)

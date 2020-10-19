@@ -8,5 +8,5 @@
 #define T_TXT 16				// Text record
 #define T_AAAA 28				// IPv6 address
 
-void resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type);
+struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type);
 void print_packet(unsigned char* buf);
