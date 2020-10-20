@@ -1,6 +1,6 @@
 CC=gcc
-_OBJ=main.o dns.o servers.o
-_DEPS=dns.h servers.h
+_OBJ=main.o dns.o slist.o
+_DEPS=dns.h servers.h slist.h
 IDIR=include
 CFLAGS=-I$(IDIR) -Wall -g
 ODIR=obj
