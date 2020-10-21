@@ -11,7 +11,9 @@ There were some online, which for obvious reasons are useless for local testing,
 Namebench was in the process of a rewrite and also was written in go.
 This is written in C to try and make is as approachable as possible.
 
-It was developed mostly on Linux and Mac, although it has been tested to work on Windows as well.
+It was developed mostly on Linux and Mac.
+Unfortunately Windows with mingw64 does not have sys/socket.h, so it is unable to be built.
+Enabling that to work with some macro would be in the future.
 
 * Usage
 There is a preloaded list of 20 DNS servers and 50 hostnames to try out.
@@ -30,3 +32,4 @@ Once testing has been completed, a list of DNS servers will be printed out from 
 - Optimise a little
 - Add more hostnames and DNS servers
 - Allow piping of hosts and/or servers
+- Windows socket support
