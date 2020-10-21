@@ -69,6 +69,8 @@ struct RES_RECORD
 	 char* rdata;
 };
 
+// Test server dns_ip as IPv4 string for hostname
+// Writes received packet to buf, which is supplied and returns time for request
 struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip, int query_type)
 {
 	 int s, i;
@@ -120,6 +122,7 @@ struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip, int qu
 	 i = recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest, (socklen_t*)&i);
 	 clock_gettime(CLOCK_MONOTONIC, &end);
 
+	 // Make sure packet was returned
 	 if (i == -1)
 		  total.tv_nsec = -1;
 	 else
@@ -132,6 +135,7 @@ struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip, int qu
 	 return total;
 }
 
+// Print dns packet content, not terribly reliable but works for testing resolve with A requests
 void print_packet(unsigned char* buf)
 {
 	 struct RES_RECORD answers[20], auth[20], addit[20];
@@ -242,7 +246,8 @@ void print_packet(unsigned char* buf)
 	 }
 }
 
-
+// convert from dot format to dns format
+// eg google.com to 6google3com
 void change_to_DNS_name_format(unsigned char* dns, unsigned char* host)
 {
 	 int lock = 0;
@@ -262,6 +267,7 @@ void change_to_DNS_name_format(unsigned char* dns, unsigned char* host)
 	 *dns++ = '\0';
 }
 
+// Convert from dns to dot format
 char* read_name(unsigned char* reader, unsigned char* buffer, int* count)
 {
 	 char* name;

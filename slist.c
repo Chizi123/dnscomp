@@ -65,6 +65,8 @@ int free_dns_list(struct dns_list **head)
 	 return 0;
 }
 
+// Sort with merge sort as works well for linked lists
+// Copied from https://www.geeksforgeeks.org/merge-sort-for-linked-list/
 int sort_servers(struct dns_list **headRef)
 {
 	struct dns_list *head = *headRef;

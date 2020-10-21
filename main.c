@@ -1,29 +1,56 @@
+/**
+ * A basic dns benchmark testing program
+ * Tests servers in parallel so reasonably fast
+ * Tried to only use POSIX functions to ensure cross platform compatibility
+ **/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
 #include "dns.h"
 #include "servers.h"
 #include "slist.h"
 
 #define NUM_TESTS 10
 
-int test_dns(struct dns_list *dnss, struct hosts_list *hosts, int num_hosts, int num_tests);
-struct timespec test_server(struct dns_list *dns, struct hosts_list *hosts, int num_hosts, int num_tests);
+/* struct test_server_input { */
+/* 	int dns; */
+/* 	//struct hosts_list *hosts; */
+/* 	int num_hosts; */
+/* 	int num_tests; */
+/* }; */
+
+/* struct progress_input { */
+/* 	int num_hosts; */
+/* 	int num_tests; */
+/* 	int num_servers; */
+/* }; */
+
+int test_dns(void);
+void *test_server(void *in);
+void *print_progress(void *in);
+
+// All global variables as passing to threads in structs caused corruption
+// Variables are only modified before threads are created and as such are thread-safe
+// tests_done is modified to provide a rough count of number of tests being completed for progress measurement
+int tests_done = 0, num_tests = NUM_TESTS, num_servers = NUM_DNS, num_hosts = 0;
+struct hosts_list *hosts = NULL;
+struct dns_list *servers = NULL;
 
 int main(int argc, char** argv)
 {
-	int option, num_hosts = 0, added_hosts = 0, num_tests = NUM_TESTS;
-	struct hosts_list *servers_hosts = NULL;
-	struct dns_list *servers_dns = NULL;
+	int option, added_hosts = 0;
 	while((option = getopt(argc, argv, "s:h:t:n:")) != -1) {
 		switch (option) {
 		case 's': //server to use
-			add_dns_server(&servers_dns, optarg);
+			add_dns_server(&servers, optarg);
+			num_servers++;
 			break;
 		case 'h': //hostname to search
-			add_hosts_server(&servers_hosts, optarg);
+			add_hosts_server(&hosts, optarg);
 			added_hosts++;
 			break;
 		case 't': //set number of hosts to test
@@ -35,8 +62,8 @@ int main(int argc, char** argv)
 		case '?':
 		default:
 			printf("Error: invalid option -%c\n", optopt);
-			free_dns_list(&servers_dns);
-			free_hosts_list(&servers_hosts);
+			free_dns_list(&servers);
+			free_hosts_list(&hosts);
 			exit(1);
 		}
 	}
@@ -44,32 +71,47 @@ int main(int argc, char** argv)
 		num_hosts = NUM_HOSTNAMES + added_hosts;
 	}
 	for (int i = added_hosts; i < num_hosts; i++) {
-		add_hosts_server(&servers_hosts, HOSTNAMES[i-added_hosts]);
+		add_hosts_server(&hosts, HOSTNAMES[i-added_hosts]);
 	}
 	for (int i = 0; i < NUM_DNS; i++) {
-		add_dns_server(&servers_dns, DNS_SERVERS[i]);
+		add_dns_server(&servers, DNS_SERVERS[i]);
 	}
-	test_dns(servers_dns, servers_hosts, num_hosts, num_tests);
-	sort_servers(&servers_dns);
-	print_servers(servers_dns);
-	free_dns_list(&servers_dns);
-	free_hosts_list(&servers_hosts);
+	test_dns();
+	sort_servers(&servers);
+	print_servers(servers);
+	free_dns_list(&servers);
+	free_hosts_list(&hosts);
 	return 0;
 }
 
-int test_dns(struct dns_list *dnss, struct hosts_list *hosts, int num_hosts, int num_tests)
+// Test each dns server individually
+// Each test runs in its own thread and results are written to the respective dns_list
+int test_dns(void)
 {
-	struct dns_list *curr = dnss;
+	struct dns_list *curr = servers;
+	int i = 0;
+	pthread_t *threads = malloc(num_servers*sizeof(pthread_t));
+	pthread_t progress;
+	pthread_create(&progress, NULL, print_progress, NULL);
 	while (curr) {
-		test_server(curr, hosts, num_hosts, num_tests);
+		pthread_create(&threads[i], NULL, test_server, (void*)curr);
 		curr = curr->next;
+		i++;
 	}
+	for (int i = 0; i < num_servers; i++) {
+		pthread_join(threads[i], NULL);
+	}
+	pthread_cancel(progress);
+	printf("\r100.00%% done\n");
+	free(threads);
 	return 0;
 }
 
-struct timespec test_server(struct dns_list *dns, struct hosts_list *hosts, int num_hosts, int num_tests)
+// Tests an individual dns server with all the hostnames configured
+void *test_server(void *in)
 {
 	unsigned long long avg_nsec = 0;
+	struct dns_list *dns = (struct dns_list *)in;
 	dns->time.tv_sec = 0; dns->time.tv_nsec = 0;
 	for (int i = 0; i < num_tests; i++) {
 		struct hosts_list *curr = hosts;
@@ -77,19 +119,34 @@ struct timespec test_server(struct dns_list *dns, struct hosts_list *hosts, int 
 			struct timespec run;
 			unsigned char buf[65536];
 			run = resolve(buf, curr->server, dns->server, T_A);
-			if (run.tv_sec == -1)
+			if (run.tv_sec == -1) //currently ignore failed tests, need to figure out what to do with them
 				continue;
 			dns->time.tv_sec += run.tv_sec;
 			dns->time.tv_nsec += run.tv_nsec;
-			if (dns->time.tv_nsec >= 1000000000) {
+			if (dns->time.tv_nsec >= 1000000000) { //nanoseconds have overflowed into seconds
 				dns->time.tv_sec += 1;
 				dns->time.tv_nsec -= 1000000000;
 			}
+			tests_done++;
 			curr = curr->next;
 		}
 	}
 	avg_nsec = 1000000000*(dns->time.tv_sec%(num_hosts*num_tests))+dns->time.tv_nsec;
 	dns->time.tv_sec = dns->time.tv_sec/(num_hosts*num_tests);
 	dns->time.tv_nsec = avg_nsec/(num_hosts*num_tests);
-	return dns->time;
+	return NULL;
+}
+
+// Prints the progress every 0.1s for an indication of speed
+// tests_done is being written to in parallel, so may be overwritten but serves as a decent estimate of the progress
+void *print_progress(void *in)
+{
+	struct timespec s;
+	s.tv_sec = 0; s.tv_nsec = 100000000;
+	while (1) {
+		printf("\r%.2f%% done", ((float)tests_done)/(num_servers*num_hosts*num_tests) * 100);
+		fflush(stdout);
+		nanosleep(&s, NULL);
+	}
+	return NULL;
 }

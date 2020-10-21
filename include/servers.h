@@ -1,3 +1,11 @@
+/**
+ * Unfortunately, wanting to make cross platform required static lists of hosts and dns servers
+ * At least until I think of a good way to do it
+ * Hosts came from alexa top 50 one day and dns are from quick searching for common servers
+ * DNS only takes IPv4 server addresses
+ * The definitions must be the same as the size of the arrays, as they are required later on to be read properly
+ **/
+
 #define NUM_HOSTNAMES 50
 #define NUM_DNS 20
 

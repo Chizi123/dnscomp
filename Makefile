@@ -2,7 +2,7 @@ CC=gcc
 _OBJ=main.o dns.o slist.o
 _DEPS=dns.h servers.h slist.h
 IDIR=include
-CFLAGS=-I$(IDIR) -Wall -g
+CFLAGS=-I$(IDIR) -Wall -g -lpthread
 ODIR=obj
 SRCDIR=src
 
