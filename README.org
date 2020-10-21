@@ -1,0 +1,32 @@
+#+TITLE: DNScomp, a basic DNS benchmark tool
+
+* What is this and why did you make it?
+This is a basic DNS bench-marking tool, written to be as portable as possible.
+As such I have tried to include only POSIX functions.
+It runs the tests in parallel to try and save some time, and has a rudimentary progress meter for signs of life.
+It is by no means perfect, but it is mostly functional. Nonetheless, feel free to try and improve it.
+
+As to why I made it, I couldn't find a DNS benchmarking tool.
+There were some online, which for obvious reasons are useless for local testing, and the others were fairly old and/or platform specific.
+Namebench was in the process of a rewrite and also was written in go.
+This is written in C to try and make is as approachable as possible.
+
+It was developed mostly on Linux and Mac, although it has been tested to work on Windows as well.
+
+* Usage
+There is a preloaded list of 20 DNS servers and 50 hostnames to try out.
+By default, all 50 will be tested.
+You can add your own DNS servers with the ~-s~ argument and hosts to check with ~-a~.
+If you want to test less hostnames, you can do so by specifying the number to test with ~-t~.
+The number of times to test each hostname is defaulted to 10, but can be specified with ~-n~.
+Added DNS servers and hosts are the first to be used.
+
+While running, a counter will show a completion percentage, although this may undercount due to the parallel nature of the program.
+Additionally progress will slow towards the end as the last servers are left to complete.
+Once testing has been completed, a list of DNS servers will be printed out from fastest to slowest, with the average response time next to them.
+
+* Things still to do
+- Clean up the code and make it more readable and nicer
+- Optimise a little
+- Add more hostnames and DNS servers
+- Allow piping of hosts and/or servers

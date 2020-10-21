@@ -30,13 +30,13 @@ struct dns_list *servers = NULL;
 int main(int argc, char** argv)
 {
 	int option, added_hosts = 0;
-	while((option = getopt(argc, argv, "s:h:t:n:")) != -1) {
+	while((option = getopt(argc, argv, "s:a:t:n:h")) != -1) {
 		switch (option) {
 		case 's': //server to use
 			add_dns_server(&servers, optarg);
 			num_servers++;
 			break;
-		case 'h': //hostname to search
+		case 'a': //hostname to search
 			add_hosts_server(&hosts, optarg);
 			added_hosts++;
 			break;
@@ -47,8 +47,15 @@ int main(int argc, char** argv)
 			num_tests = atoi(optarg);
 			break;
 		case '?':
+		case 'h':
 		default:
-			printf("Error: invalid option -%c\n", optopt);
+			printf("Usage: %s [options]\n", argv[0]);
+			printf("Options:\n");
+			printf("\t-s <server>\tadd a DNS server to be tested\n");
+			printf("\t-a <hostname>\tadd a hostname to be tested\n");
+			printf("\t-t <number>\tspecify the number of hostnames to be tested, capped at 50 + number manually added\n\t\t\tdefaults to test all available\n");
+			printf("\t-n <number>\tspecify the number of tests to perform on each hostname\n\t\t\tdefaults to 10\n");
+			printf("\t-h\t\tShow this help\n");
 			free_dns_list(&servers);
 			free_hosts_list(&hosts);
 			exit(1);
