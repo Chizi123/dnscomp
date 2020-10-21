@@ -99,7 +99,6 @@ void split(struct dns_list *head, struct dns_list **a, struct dns_list **b)
 struct dns_list *merge(struct dns_list *a, struct dns_list *b)
 {
 	struct dns_list *out = NULL;
-	int comp;
 	if (!a)
 		return b;
 	if (!b)

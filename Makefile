@@ -9,12 +9,12 @@ SRCDIR=src
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-default: a.out
+default: dnscomp
 
 %.o: %c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-a.out: $(_OBJ)
+dnscomp: $(_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
 .PHONY: clean

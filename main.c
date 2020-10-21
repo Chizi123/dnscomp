@@ -16,19 +16,6 @@
 
 #define NUM_TESTS 10
 
-/* struct test_server_input { */
-/* 	int dns; */
-/* 	//struct hosts_list *hosts; */
-/* 	int num_hosts; */
-/* 	int num_tests; */
-/* }; */
-
-/* struct progress_input { */
-/* 	int num_hosts; */
-/* 	int num_tests; */
-/* 	int num_servers; */
-/* }; */
-
 int test_dns(void);
 void *test_server(void *in);
 void *print_progress(void *in);
@@ -117,10 +104,13 @@ void *test_server(void *in)
 		struct hosts_list *curr = hosts;
 		while (curr) {
 			struct timespec run;
+			run.tv_sec = -1; run.tv_nsec = 0;
 			unsigned char buf[65536];
-			run = resolve(buf, curr->server, dns->server, T_A);
-			if (run.tv_sec == -1) //currently ignore failed tests, need to figure out what to do with them
-				continue;
+			for (int i = 0; i < 3 && run.tv_sec == -1; i++) {
+				run = resolve(buf, curr->server, dns->server, T_A);
+			}
+			if (run.tv_sec == -1) //if test has failed 3 times, set time taken to 3s as penalty
+				run.tv_sec = 3;
 			dns->time.tv_sec += run.tv_sec;
 			dns->time.tv_nsec += run.tv_nsec;
 			if (dns->time.tv_nsec >= 1000000000) { //nanoseconds have overflowed into seconds
