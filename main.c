@@ -65,10 +65,10 @@ int main(int argc, char** argv)
 		num_hosts = NUM_HOSTNAMES + added_hosts;
 	}
 	for (int i = added_hosts; i < num_hosts; i++) {
-		add_hosts_server(&hosts, HOSTNAMES[i-added_hosts]);
+		add_hosts_server(&hosts, (char*)HOSTNAMES[i-added_hosts]);
 	}
 	for (int i = 0; i < NUM_DNS; i++) {
-		add_dns_server(&servers, DNS_SERVERS[i]);
+		add_dns_server(&servers, (char*)DNS_SERVERS[i]);
 	}
 	test_dns();
 	sort_servers(&servers);

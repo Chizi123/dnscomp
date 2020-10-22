@@ -12,10 +12,10 @@ OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 default: dnscomp
 
 %.o: %c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 dnscomp: $(_OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) -o $@ $^ $(CFLAGS)
 
 .PHONY: clean
 clean:
