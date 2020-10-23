@@ -113,7 +113,7 @@ void *test_server(void *in)
 			struct timespec run;
 			run.tv_sec = -1; run.tv_nsec = 0;
 			unsigned char buf[65536];
-			for (int i = 0; i < 3 && run.tv_sec == -1; i++) {
+			for (int j = 0; j < 3 && run.tv_sec == -1; j++) {
 				run = resolve(buf, curr->server, dns->server, T_A);
 			}
 			if (run.tv_sec == -1) //if test has failed 3 times, set time taken to 3s as penalty
