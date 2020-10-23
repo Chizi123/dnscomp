@@ -7,7 +7,7 @@
  **/
 
 #define NUM_HOSTNAMES 50
-#define NUM_DNS 20
+#define NUM_DNS 26
 
 const char HOSTNAMES[NUM_HOSTNAMES][20] = {
     "google.com",     "youtube.com",
@@ -48,4 +48,7 @@ const char DNS_SERVERS[NUM_DNS][20] = {
     "96.140.14.14",   "94.140.15.15",    // AdGuard DNS
     "8.26.56.26",     "8.20.247.20",     // Comodo Secure DNS
     "84.200.69.80",   "84.200.70.40",    // DNS Watch
+    "77.88.8.8",      "77.88.88.1",      // Yandex
+    "91.239.100.100", "89.233.43.71",    // UnsensoredDNS
+    "156.154.70.1",   "156.154.71.2",    // Neustar
 };
