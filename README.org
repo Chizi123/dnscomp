@@ -27,6 +27,7 @@ While running, a counter will show a completion percentage, although this may un
 Additionally progress will slow towards the end as the last servers are left to complete.
 Once testing has been completed, a list of DNS servers will be printed out from fastest to slowest, with the average response time next to them.
 
+There is a package available on the AUR, [[https://aur.archlinux.org/packages/dnscomp-git][dnscomp-git]].
 * Things still to do
 - Clean up the code and make it more readable and nicer
 - Optimise a little
