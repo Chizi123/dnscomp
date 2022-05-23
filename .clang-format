@@ -1,0 +1,12 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: AlignWithSpaces
+AllowShortIfStatementsOnASingleLine: true
+BreakBeforeBraces: Linux
+PointerAlignment: Left
+AllowShortIfStatementsOnASingleLine: true
+IndentCaseBlocks: true
+IndentCaseLabels: false
+SortUsingDeclarations: true
