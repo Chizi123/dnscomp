@@ -8,7 +8,7 @@ struct hosts_list {
 struct dns_list {
 	char* server;
 	struct timespec time;
-    int errors;
+	int errors;
 	struct dns_list* next;
 };
 

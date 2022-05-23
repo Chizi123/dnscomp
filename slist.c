@@ -115,9 +115,9 @@ struct dns_list* merge(struct dns_list* a, struct dns_list* b)
 
 int comp_times(struct dns_list* a, struct dns_list* b)
 {
-    if (a->errors != b->errors) {
-        return a->errors > b->errors;
-    } else if (a->time.tv_sec == b->time.tv_sec) {
+	if (a->errors != b->errors) {
+		return a->errors > b->errors;
+	} else if (a->time.tv_sec == b->time.tv_sec) {
 		if (a->time.tv_nsec >= b->time.tv_nsec)
 			return 1;
 		else

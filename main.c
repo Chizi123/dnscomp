@@ -57,7 +57,7 @@ int main(int argc, char** argv)
 			printf(
 				"\t-t <number>\tspecify the number of hostnames to be tested, "
 				"capped at 50 + number manually added\n\t\t\tdefaults to test "
-			    "all "
+				"all "
 				"available\n");
 			printf(
 				"\t-n <number>\tspecify the number of tests to perform on each "
@@ -116,7 +116,7 @@ void* test_server(void* in)
 	struct dns_list* dns = (struct dns_list*)in;
 	dns->time.tv_sec = 0;
 	dns->time.tv_nsec = 0;
-    dns->errors = 0;
+	dns->errors = 0;
 	for (int i = 0; i < num_tests; i++) {
 		struct hosts_list* curr = hosts;
 		while (curr) {
@@ -127,18 +127,19 @@ void* test_server(void* in)
 			for (int j = 0; j < 3 && run.tv_sec == -1; j++) {
 				run = resolve(buf, curr->server, dns->server, T_A);
 			}
-			if (run.tv_sec == -1) { // if test has failed 3 times, set time taken
-			                      // to 3s as penalty
-                dns->errors++;
-            } else {
-                dns->time.tv_sec += run.tv_sec;
-                dns->time.tv_nsec += run.tv_nsec;
-                if (dns->time.tv_nsec >=
-                    1000000000) { // nanoseconds have overflowed into seconds
-                    dns->time.tv_sec += 1;
-                    dns->time.tv_nsec -= 1000000000;
-                }
-            }
+			if (run.tv_sec ==
+			    -1) { // if test has failed 3 times, set time taken
+					  // to 3s as penalty
+				dns->errors++;
+			} else {
+				dns->time.tv_sec += run.tv_sec;
+				dns->time.tv_nsec += run.tv_nsec;
+				if (dns->time.tv_nsec >=
+				    1000000000) { // nanoseconds have overflowed into seconds
+					dns->time.tv_sec += 1;
+					dns->time.tv_nsec -= 1000000000;
+				}
+			}
 			tests_done++;
 			curr = curr->next;
 		}
