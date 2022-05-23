@@ -122,7 +122,7 @@ struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip,
 	               sizeof(struct QUESTION),
 	           0, (struct sockaddr*)&dest, sizeof(dest));
 
-	if (i < 0) {
+	if (i >= 0) {
 		// receive response
 		// negative return is a fail
 		i = sizeof(dest);
