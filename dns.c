@@ -114,13 +114,15 @@ struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip, int qu
 	 //send request
 	 // return less than 0 is a fail
 	 clock_gettime(CLOCK_MONOTONIC, &start);
-	 sendto(s,(char*)buf, sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION), 0, (struct sockaddr*)&dest, sizeof(dest));
+	 i = sendto(s,(char*)buf, sizeof(struct DNS_HEADER)+strlen((const char*)qname)+1+sizeof(struct QUESTION), 0, (struct sockaddr*)&dest, sizeof(dest));
 
-	 //receive response
-	 //negative return is a fail
-	 i = sizeof(dest);
-	 i = recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest, (socklen_t*)&i);
-	 clock_gettime(CLOCK_MONOTONIC, &end);
+	 if (i < 0) {
+		  //receive response
+		  //negative return is a fail
+		  i = sizeof(dest);
+		  i = recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest, (socklen_t*)&i);
+		  clock_gettime(CLOCK_MONOTONIC, &end);
+	 }
 
 	 // Make sure packet was returned
 	 if (i == -1)
