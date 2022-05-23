@@ -4,7 +4,7 @@
 
 void split(struct dns_list* head, struct dns_list** a, struct dns_list** b);
 struct dns_list* merge(struct dns_list* a, struct dns_list* b);
-int comp_times(struct timespec a, struct timespec b);
+int comp_times(struct dns_list* a, struct dns_list* b);
 
 int add_hosts_server(struct hosts_list** head, char* server)
 {
@@ -103,7 +103,7 @@ struct dns_list* merge(struct dns_list* a, struct dns_list* b)
 	if (!a) return b;
 	if (!b) return a;
 
-	if (comp_times(a->time, b->time) > 0) {
+	if (comp_times(a, b) > 0) {
 		out = b;
 		out->next = merge(a, b->next);
 	} else {
@@ -113,14 +113,16 @@ struct dns_list* merge(struct dns_list* a, struct dns_list* b)
 	return out;
 }
 
-int comp_times(struct timespec a, struct timespec b)
+int comp_times(struct dns_list* a, struct dns_list* b)
 {
-	if (a.tv_sec == b.tv_sec) {
-		if (a.tv_nsec >= b.tv_nsec)
+    if (a->errors != b->errors) {
+        return a->errors > b->errors;
+    } else if (a->time.tv_sec == b->time.tv_sec) {
+		if (a->time.tv_nsec >= b->time.tv_nsec)
 			return 1;
 		else
 			return -1;
-	} else if (a.tv_sec > b.tv_sec) {
+	} else if (a->time.tv_sec > b->time.tv_sec) {
 		return 1;
 	} else
 		return -1;
@@ -128,10 +130,10 @@ int comp_times(struct timespec a, struct timespec b)
 
 int print_servers(struct dns_list* head)
 {
-	printf("%-20s | %s\n", "Server", "Time");
+	printf("%-16s | %-11s | %s\n", "Server", "Time", "Errors");
 	while (head) {
-		printf("%-20s | %ld.%09ld\n", head->server, head->time.tv_sec,
-		       head->time.tv_nsec);
+		printf("%-16s | %ld.%09ld | %d\n", head->server, head->time.tv_sec,
+		       head->time.tv_nsec, head->errors);
 		head = head->next;
 	}
 	return 0;
