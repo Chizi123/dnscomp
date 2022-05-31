@@ -1,22 +1,23 @@
+#include "dns.h"
 #include <arpa/inet.h>
 #include <asm-generic/socket.h>
+#include <bits/time.h>
+#include <errno.h>
+#include <linux/if_ether.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-//#include <netint/in.h>
-//#include <netdb.h>
-//#include <sys/time.h>
-#include "dns.h"
 #include <time.h>
 #include <unistd.h>
-#include <errno.h>
 
 void change_to_DNS_name_format(unsigned char* dns, unsigned char* host);
 char* read_name(unsigned char* reader, unsigned char* buffer, int* count);
-void fill_ICMP_data(unsigned char* icmp_data, int datasize);
-unsigned short icmp_checksum(unsigned short* buf, int size);
+int fill_DNS_data(unsigned char* buf, int datasize, char* hostname,
+                  int query_type);
 
 // DNS code copied from
 // https://gist.github.com/fffaraz/9d9170b57791c28ccda9255b48315168
@@ -69,25 +70,20 @@ struct RES_RECORD {
 	char* rdata;
 };
 
-#define ICMP_ECHO 8
-#define ICMP_ECHOREPLY 0
-
-struct ICMP_HEADER {
-    unsigned char type;
-    unsigned char code;
-    short checksum;
-    short id;
-    short seq;
-    long timestamp;
-};
+#define IP_ICMP 1
+#define IP_TCP 6
+#define IP_UDP 17
 
 // Test if an IP address is hosting a DNS server
 int reachable(unsigned char* buf, char* dns_ip)
 {
-	int s, r;
-    int datasize = 64;
+	int s, r, ret, name_len;
 	struct sockaddr_in dest;
-	struct timespec timeout;
+	socklen_t dest_len = sizeof(dest);
+	struct timespec timeout, start, end;
+	struct icmphdr* icmp_head;
+	struct ip* ip_head;
+    unsigned char buf_send[65535];
 	timeout.tv_sec = 1;
 	timeout.tv_nsec = 0;
 
@@ -95,32 +91,63 @@ int reachable(unsigned char* buf, char* dns_ip)
 	dest.sin_port = htons(53);
 	dest.sin_addr.s_addr = inet_addr(dns_ip);
 
-    if (0) {
-        s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-        if (s < 0) {
-            printf("%d, %s\n", s, strerror(errno));
-            return -1;
+	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	/* r = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP); */
+	r = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
+	if (r < 0) {
+		printf("%d, %s\n", r, strerror(errno));
+		return -1;
+	}
+	setsockopt(r, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timespec));
+
+	name_len = fill_DNS_data((unsigned char*)&buf_send, 65535, "google.com", T_A);
+	ret = sendto(s, buf_send,
+	             sizeof(struct DNS_HEADER) + name_len + 1 +
+	                 sizeof(struct QUESTION),
+	             0, (struct sockaddr*)&dest, sizeof(dest));
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    do {
+        ret = recvfrom(r, buf, 65535, 0, (struct sockaddr*)&dest, &dest_len);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        if (!memcmp(&buf_send, buf, 100)) {
+            printf("*1\n");
+            break;
         }
-        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timespec));
+    } while (start.tv_sec + 2 > end.tv_sec);
 
-        fill_ICMP_data(buf, datasize);
-        ((struct ICMP_HEADER*)buf)->checksum = icmp_checksum((unsigned short*)buf, datasize);
+	close(s);
+	close(r);
 
-        r = sendto(s, buf, datasize, 0, (struct sockaddr*)&dest, sizeof(dest));
-        printf("%d\n", r);
-    }
+    printf("diff: %d\n", memcmp(&buf_send, buf, 100));
 
-    s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (s < 0) {
-        printf("%d, %s\n", s, strerror(errno));
-        return -1;
-    }
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timespec));
+	ip_head = (struct ip*)buf;
+	icmp_head = (struct icmphdr*)buf + sizeof(struct ip);
 
-    r = connect(s, (struct sockaddr*)&dest, sizeof(dest));
-    printf("%d", r);
+	for (int i = 0; i < 93; i++) {
+		printf("%02X", buf[i]);
+	}
+	printf("\n");
 
-    return 1;
+	printf("len: %d, ver: %d, tos: %d, tlen: %d, ident: %d, ff: %d, ttl: %d, "
+	       "pro: %d, cs: %d, sip: %d, dip: %d\n",
+	       ip_head->ip_hl, ip_head->ip_v, ip_head->ip_tos, ip_head->ip_len,
+	       ip_head->ip_id, ip_head->ip_off, ip_head->ip_ttl, ip_head->ip_p,
+	       ip_head->ip_sum, ip_head->ip_src.s_addr, ip_head->ip_dst.s_addr);
+
+	if (ip_head->ip_p != IP_UDP) {
+		if (ip_head->ip_p == IP_ICMP) {
+			return 1;
+		} else {
+			printf("%d\n", ip_head->ip_p);
+			for (int i = 0; i < sizeof(struct ip); i++) {
+				printf("%02X", buf[i]);
+			}
+			printf("\n");
+			return 2;
+		}
+	}
+	return 0;
 }
 
 // Test server dns_ip as IPv4 string for hostname
@@ -128,11 +155,9 @@ int reachable(unsigned char* buf, char* dns_ip)
 struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip,
                         int query_type)
 {
-	int s, i;
+	int s, i, name_len;
 	struct sockaddr_in dest;
-	unsigned char* qname;
-	struct DNS_HEADER* dns = (struct DNS_HEADER*)buf;
-	struct QUESTION* qinfo;
+	socklen_t dest_len = sizeof(dest);
 	struct timespec start, end, total, timeout;
 	timeout.tv_nsec = 0;
 	timeout.tv_sec = 1;
@@ -147,37 +172,13 @@ struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip,
 	dest.sin_port = htons(53);
 	dest.sin_addr.s_addr = inet_addr(dns_ip);
 
-	// dns packet header
-	dns->id = (unsigned short)htons(getpid());
-	dns->qr = 0;     // make query
-	dns->opcode = 0; // standard query
-	dns->aa = 0;     // not authoritive
-	dns->tc = 0;     // not trucated
-	dns->rd = 1;     // want recursion
-	dns->ra = 0;     // recursion not available
-	dns->z = 0;
-	dns->ad = 0;
-	dns->cd = 0;
-	dns->rcode = 0;
-	dns->q_count = htons(1); // one question
-	dns->ans_count = 0;
-	dns->auth_count = 0;
-	dns->add_count = 0;
-
-	// dns packet query
-	qname = (unsigned char*)&buf[sizeof(struct DNS_HEADER)];
-	change_to_DNS_name_format(qname, (unsigned char*)hostname);
-	qinfo = (struct QUESTION*)&buf[sizeof(struct DNS_HEADER) +
-	                               strlen((const char*)qname) + 1];
-	qinfo->qtype = htons(
-		query_type); // type of query from argument (A,AAAA,MX,CNAME,NS,...)
-	qinfo->qclass = htons(1); // internet class
+	name_len = fill_DNS_data(buf, 65535, hostname, query_type);
 
 	// send request
 	//  return less than 0 is a fail
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	i = sendto(s, (char*)buf,
-	           sizeof(struct DNS_HEADER) + strlen((const char*)qname) + 1 +
+	           sizeof(struct DNS_HEADER) + name_len + 1 +
 	               sizeof(struct QUESTION),
 	           0, (struct sockaddr*)&dest, sizeof(dest));
 
@@ -186,7 +187,7 @@ struct timespec resolve(unsigned char* buf, char* hostname, char* dns_ip,
 		// negative return is a fail
 		i = sizeof(dest);
 		i = recvfrom(s, (char*)buf, 65536, 0, (struct sockaddr*)&dest,
-		             (socklen_t*)&i);
+		             &dest_len);
 		clock_gettime(CLOCK_MONOTONIC, &end);
 	}
 
@@ -381,33 +382,39 @@ char* read_name(unsigned char* reader, unsigned char* buffer, int* count)
 	return name;
 }
 
-// Populate the sending ICMP packet with data
-void fill_ICMP_data(unsigned char* icmp_data, int datasize)
+// Populate the sending DNS packet with data
+int fill_DNS_data(unsigned char* buf, int datasize, char* hostname,
+                  int query_type)
 {
-    struct ICMP_HEADER* h = (struct ICMP_HEADER*)icmp_data;
-    unsigned char* d = icmp_data + sizeof(struct ICMP_HEADER);
+	struct DNS_HEADER* dns = (struct DNS_HEADER*)buf;
+	struct QUESTION* qinfo;
+	unsigned char* qname;
 
-    h->type = ICMP_ECHO;
-    h->code = 0;
-    h->id = getpid();
-    h->checksum = 0;
-    h->seq = 0;
+	// dns packet header
+	dns->id = (unsigned short)htons(getpid());
+	dns->qr = 0;     // make query
+	dns->opcode = 0; // standard query
+	dns->aa = 0;     // not authoritive
+	dns->tc = 0;     // not trucated
+	dns->rd = 1;     // want recursion
+	dns->ra = 0;     // recursion not available
+	dns->z = 0;
+	dns->ad = 0;
+	dns->cd = 0;
+	dns->rcode = 0;
+	dns->q_count = htons(1); // one question
+	dns->ans_count = 0;
+	dns->auth_count = 0;
+	dns->add_count = 0;
 
-    memset(d, 'A', datasize - sizeof(struct ICMP_HEADER));
-}
+	// dns packet query
+	qname = (unsigned char*)&buf[sizeof(struct DNS_HEADER)];
+	change_to_DNS_name_format(qname, (unsigned char*)hostname);
+	qinfo = (struct QUESTION*)&buf[sizeof(struct DNS_HEADER) +
+	                               strlen((const char*)qname) + 1];
+	qinfo->qtype = htons(
+		query_type); // type of query from argument (A,AAAA,MX,CNAME,NS,...)
+	qinfo->qclass = htons(1); // internet class
 
-// Calculate the ICMP checksum
-unsigned short icmp_checksum(unsigned short* buf, int size)
-{
-    unsigned long checksum = 0;
-    while (size > 1) {
-        checksum += *buf++;
-        size -= sizeof(unsigned short);
-    }
-    if (size) {
-        checksum += *buf;
-    }
-    checksum = (checksum >> 16) + (checksum & 0xffff);
-    checksum += checksum >> 16;
-    return (unsigned short)~checksum;
+	return strlen((const char*)qname);
 }
