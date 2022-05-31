@@ -1,5 +1,5 @@
 CC=gcc
-_OBJ=main.o dns.o slist.o
+_OBJ=dns.o slist.o
 _DEPS=dns.h servers.h slist.h
 CFLAGS=-Wall -lpthread
 
@@ -14,7 +14,10 @@ default: dnscomp
 %.o: %c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-dnscomp: $(_OBJ)
+dnscomp: $(_OBJ) main.o
+	$(CC) -o $@ $^ $(CFLAGS)
+
+test: $(_OBJ) test.o
 	$(CC) -o $@ $^ $(CFLAGS)
 
 .PHONY: clean

@@ -120,6 +120,8 @@ int reachable(unsigned char* buf, char* dns_ip)
     r = connect(s, (struct sockaddr*)&dest, sizeof(dest));
     printf("%d", r);
 
+
+
     return 1;
 }
 
