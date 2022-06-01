@@ -6,7 +6,7 @@ CFLAGS=-Wall -lpthread
 ifeq ($(DEV),1)
 	CFLAGS += -g
 else
-	CFLAGS += -O2 -flto
+	#CFLAGS += -O2 -flto
 endif
 
 default: dnscomp
