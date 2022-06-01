@@ -130,11 +130,23 @@ int comp_times(struct dns_list* a, struct dns_list* b)
 
 int print_servers(struct dns_list* head)
 {
+    struct dns_list* curr = head;
 	printf("%-16s | %-11s | %s\n", "Server", "Time", "Errors");
-	while (head) {
-		printf("%-16s | %ld.%09ld | %d\n", head->server, head->time.tv_sec,
-		       head->time.tv_nsec, head->errors);
-		head = head->next;
+	while (curr) {
+        if (curr->errors != -1) {
+            printf("%-16s | %ld.%09ld | %d\n", curr->server, curr->time.tv_sec,
+                   curr->time.tv_nsec, curr->errors);
+        }
+        curr = curr->next;
 	}
+    fflush(stdout);
+    curr = head;
+    if (head->errors == -1) {
+        printf("The following servers were unreachable:\n");
+        while (curr && curr->errors == -1) {
+            printf("%s\n", curr->server);
+            curr = curr->next;
+        }
+    }
 	return 0;
 }

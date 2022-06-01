@@ -24,7 +24,7 @@ void* print_progress(void* in);
 // Variables are only modified before threads are created and as such are
 // thread-safe tests_done is modified to provide a rough count of number of
 // tests being completed for progress measurement
-int tests_done = 0, num_tests = NUM_TESTS, num_servers = NUM_DNS, num_hosts = 0;
+int tests_done = 0, num_tests = NUM_TESTS, num_servers = 0, num_hosts = 0;
 struct hosts_list* hosts = NULL;
 struct dns_list* servers = NULL;
 
@@ -76,6 +76,7 @@ int main(int argc, char** argv)
 	}
 	for (int i = 0; i < NUM_DNS; i++) {
 		add_dns_server(&servers, (char*)DNS_SERVERS[i]);
+        num_servers++;
 	}
 	test_dns();
 	sort_servers(&servers);
@@ -92,13 +93,43 @@ int test_dns(void)
 {
 	struct dns_list* curr = servers;
 	int i = 0;
-	pthread_t* threads = malloc(num_servers * sizeof(pthread_t));
+    int init_num_servers = num_servers;
+	pthread_t* threads;
 	pthread_t progress;
+    // Check each server for reachability, can't be done in parallel as incorrect packets are received
+    // reachable() requires raw packets, which needs root
+    if (getuid() == 0) {
+        while (curr) {
+            printf("\rTesting reachability: %d/%d", i, init_num_servers); fflush(stdout);
+            unsigned char* buf[65535];
+            int error_count = 0;
+            curr->errors = 0;
+            // retry 10 times for UDP unreliability
+            for (int i = 0; i < 10; i++) {
+                error_count += (reachable((unsigned char*)buf, curr->server) != 0);
+            }
+            /* fprintf(stderr, "ip: %s, ec: %d\n", curr->server, error_count); */
+            // 30% error rate means unreachable
+            if (error_count >= 3) {
+                curr->errors = -1;
+                num_servers--;
+            }
+            curr = curr->next;
+            i++;
+        }
+        printf("\rTesting reachability: %d/%d\n", i, init_num_servers);
+    }
+
+    threads = malloc(num_servers * sizeof(pthread_t));
+    curr = servers;
+    i = 0;
 	pthread_create(&progress, NULL, print_progress, NULL);
 	while (curr) {
-		pthread_create(&threads[i], NULL, test_server, (void*)curr);
+        if (curr->errors == 0) {
+            pthread_create(&threads[i], NULL, test_server, (void*)curr);
+            i++;
+        }
 		curr = curr->next;
-		i++;
 	}
 	for (int i = 0; i < num_servers; i++) {
 		pthread_join(threads[i], NULL);
@@ -116,7 +147,6 @@ void* test_server(void* in)
 	struct dns_list* dns = (struct dns_list*)in;
 	dns->time.tv_sec = 0;
 	dns->time.tv_nsec = 0;
-	dns->errors = 0;
 	for (int i = 0; i < num_tests; i++) {
 		struct hosts_list* curr = hosts;
 		while (curr) {

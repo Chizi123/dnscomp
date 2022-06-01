@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/udp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,10 +71,6 @@ struct RES_RECORD {
 	char* rdata;
 };
 
-#define IP_ICMP 1
-#define IP_TCP 6
-#define IP_UDP 17
-
 // Test if an IP address is hosting a DNS server
 int reachable(unsigned char* buf, char* dns_ip)
 {
@@ -92,10 +89,9 @@ int reachable(unsigned char* buf, char* dns_ip)
 	dest.sin_addr.s_addr = inet_addr(dns_ip);
 
 	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	/* r = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP); */
 	r = socket(AF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
 	if (r < 0) {
-		printf("%d, %s\n", r, strerror(errno));
+		/* printf("%d, %s\n", r, strerror(errno)); */
 		return -1;
 	}
 	setsockopt(r, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timespec));
@@ -106,12 +102,19 @@ int reachable(unsigned char* buf, char* dns_ip)
 	                 sizeof(struct QUESTION),
 	             0, (struct sockaddr*)&dest, sizeof(dest));
 
+    if (ret < 0) {
+        return 3;
+    }
+
     clock_gettime(CLOCK_MONOTONIC, &start);
     do {
         ret = recvfrom(r, buf, 65535, 0, (struct sockaddr*)&dest, &dest_len);
         clock_gettime(CLOCK_MONOTONIC, &end);
-        if (!memcmp(&buf_send, buf, 100)) {
-            printf("*1\n");
+        if (ret < 0) {
+            /* printf("*2, %d, %s\n", ret, strerror(errno)); */
+            break;
+        }
+        if ((ret = memcmp(&buf_send, buf + sizeof(struct ip) + sizeof(struct udphdr), sizeof(struct DNS_HEADER)))) {
             break;
         }
     } while (start.tv_sec + 2 > end.tv_sec);
@@ -119,31 +122,13 @@ int reachable(unsigned char* buf, char* dns_ip)
 	close(s);
 	close(r);
 
-    printf("diff: %d\n", memcmp(&buf_send, buf, 100));
-
 	ip_head = (struct ip*)buf;
 	icmp_head = (struct icmphdr*)buf + sizeof(struct ip);
 
-	for (int i = 0; i < 93; i++) {
-		printf("%02X", buf[i]);
-	}
-	printf("\n");
-
-	printf("len: %d, ver: %d, tos: %d, tlen: %d, ident: %d, ff: %d, ttl: %d, "
-	       "pro: %d, cs: %d, sip: %d, dip: %d\n",
-	       ip_head->ip_hl, ip_head->ip_v, ip_head->ip_tos, ip_head->ip_len,
-	       ip_head->ip_id, ip_head->ip_off, ip_head->ip_ttl, ip_head->ip_p,
-	       ip_head->ip_sum, ip_head->ip_src.s_addr, ip_head->ip_dst.s_addr);
-
-	if (ip_head->ip_p != IP_UDP) {
-		if (ip_head->ip_p == IP_ICMP) {
+	if (ip_head->ip_p != IPPROTO_UDP) {
+		if (ip_head->ip_p == IPPROTO_ICMP) {
 			return 1;
 		} else {
-			printf("%d\n", ip_head->ip_p);
-			for (int i = 0; i < sizeof(struct ip); i++) {
-				printf("%02X", buf[i]);
-			}
-			printf("\n");
 			return 2;
 		}
 	}
