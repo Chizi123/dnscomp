@@ -133,7 +133,7 @@ int print_servers(struct dns_list* head)
     struct dns_list* curr = head;
 	printf("%-16s | %-11s | %s\n", "Server", "Time", "Errors");
 	while (curr) {
-        if (curr->errors != -1) {
+        if (curr->errors >= 0) {
             printf("%-16s | %ld.%09ld | %d\n", curr->server, curr->time.tv_sec,
                    curr->time.tv_nsec, curr->errors);
         }
@@ -141,9 +141,9 @@ int print_servers(struct dns_list* head)
 	}
     fflush(stdout);
     curr = head;
-    if (head->errors == -1) {
+    if (head->errors < 0) {
         printf("The following servers were unreachable:\n");
-        while (curr && curr->errors == -1) {
+        while (curr && curr->errors < 0) {
             printf("%s\n", curr->server);
             curr = curr->next;
         }

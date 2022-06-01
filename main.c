@@ -16,7 +16,7 @@
 
 #define NUM_TESTS 10
 
-int test_dns(void);
+int test_dns(int num_reach_tests);
 void* test_server(void* in);
 void* print_progress(void* in);
 
@@ -31,7 +31,8 @@ struct dns_list* servers = NULL;
 int main(int argc, char** argv)
 {
 	int option, added_hosts = 0;
-	while ((option = getopt(argc, argv, "s:a:t:n:h")) != -1) {
+    int num_reach_tests = 10;
+	while ((option = getopt(argc, argv, "s:a:t:n:r:h")) != -1) {
 		switch (option) {
 		case 's': // server to use
 			add_dns_server(&servers, optarg);
@@ -47,6 +48,9 @@ int main(int argc, char** argv)
 		case 'n': // number of tests to perform
 			num_tests = atoi(optarg);
 			break;
+        case 'r': // number of tests for reachability
+            num_reach_tests = atoi(optarg);
+            break;
 		case '?':
 		case 'h':
 		default:
@@ -62,6 +66,7 @@ int main(int argc, char** argv)
 			printf(
 				"\t-n <number>\tspecify the number of tests to perform on each "
 				"hostname\n\t\t\tdefaults to 10\n");
+            printf("\t-r <number>\tspecify the number of tests to run for reachability, defaulting to 10. Reachability testing only works when run as root\n");
 			printf("\t-h\t\tShow this help\n");
 			free_dns_list(&servers);
 			free_hosts_list(&hosts);
@@ -78,7 +83,7 @@ int main(int argc, char** argv)
 		add_dns_server(&servers, (char*)DNS_SERVERS[i]);
         num_servers++;
 	}
-	test_dns();
+	test_dns(num_reach_tests);
 	sort_servers(&servers);
 	print_servers(servers);
 	free_dns_list(&servers);
@@ -89,13 +94,14 @@ int main(int argc, char** argv)
 // Test each dns server individually
 // Each test runs in its own thread and results are written to the respective
 // dns_list
-int test_dns(void)
+int test_dns(int num_reach_tests)
 {
 	struct dns_list* curr = servers;
 	int i = 0;
     int init_num_servers = num_servers;
 	pthread_t* threads;
 	pthread_t progress;
+
     // Check each server for reachability, can't be done in parallel as incorrect packets are received
     // reachable() requires raw packets, which needs root
     if (getuid() == 0) {
@@ -105,13 +111,13 @@ int test_dns(void)
             int error_count = 0;
             curr->errors = 0;
             // retry 10 times for UDP unreliability
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < num_reach_tests; i++) {
                 error_count += (reachable((unsigned char*)buf, curr->server) != 0);
             }
             /* fprintf(stderr, "ip: %s, ec: %d\n", curr->server, error_count); */
             // 30% error rate means unreachable
-            if (error_count >= 3) {
-                curr->errors = -1;
+            if (error_count >= (num_reach_tests * 3) / 10) {
+                curr->errors = -1 * error_count;
                 num_servers--;
             }
             curr = curr->next;
